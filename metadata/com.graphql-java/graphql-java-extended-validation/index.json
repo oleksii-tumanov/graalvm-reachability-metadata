@@ -18,6 +18,7 @@
       "graphql"
     ],
     "metadata-version": "19.2",
+    "test-version": "19.1",
     "tested-versions": [
       "19.2"
     ],

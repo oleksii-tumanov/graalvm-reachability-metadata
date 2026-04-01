@@ -2,6 +2,9 @@
   {
     "latest": true,
     "override": true,
+    "allowed-packages": [
+      "io.netty.handler.codec.http2"
+    ],
     "metadata-version": "4.1.80.Final",
     "tested-versions": [
       "4.1.80.Final"
