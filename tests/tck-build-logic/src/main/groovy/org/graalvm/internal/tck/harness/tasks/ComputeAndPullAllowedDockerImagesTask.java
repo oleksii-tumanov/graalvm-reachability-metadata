@@ -67,22 +67,23 @@ public abstract class ComputeAndPullAllowedDockerImagesTask extends DefaultTask 
         return prop == null ? "" : prop.toString();
     }
 
+    protected List<String> resolveMatchingCoordinates(TckExtension tck, String filter) {
+        if (CoordinateUtils.isFractionalBatch(filter)) {
+            int[] frac = CoordinateUtils.parseFraction(filter);
+            assert frac != null : "Already checked";
+            List<String> all = tck.getMatchingCoordinates("all");
+            return CoordinateUtils.computeBatchedCoordinates(all, frac[0], frac[1]);
+        }
+        return tck.getMatchingCoordinates(filter);
+    }
+
     @TaskAction
     public void run() throws IOException {
         TckExtension tck = Objects.requireNonNull(getProject().getExtensions().findByType(TckExtension.class));
 
         // Resolve coordinates
         String filter = effectiveCoordinateFilter();
-
-        List<String> matching;
-        if (CoordinateUtils.isFractionalBatch(filter)) {
-            int[] frac = CoordinateUtils.parseFraction(filter);
-            assert frac != null : "Already checked";
-            List<String> all = tck.getMatchingCoordinatesStrict("all");
-            matching = CoordinateUtils.computeBatchedCoordinates(all, frac[0], frac[1]);
-        } else {
-            matching = tck.getMatchingCoordinates(filter);
-        }
+        List<String> matching = resolveMatchingCoordinates(tck, filter);
 
         if (matching == null || matching.isEmpty()) {
             throw new GradleException("No matching coordinates found. Provide --coordinates=<filter> (preferred) or -Pcoordinates=<filter>, or a fractional batch 'k/n'.");
