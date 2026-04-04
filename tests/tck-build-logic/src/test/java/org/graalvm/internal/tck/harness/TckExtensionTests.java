@@ -11,6 +11,7 @@ import org.gradle.testfixtures.ProjectBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -102,16 +103,92 @@ class TckExtensionTests {
                 .isEqualTo(tempDir.resolve("tests/src/com.example/demo/0.9.0").toRealPath());
     }
 
+    @Test
+    void diffCoordinatesKeepsStrictMatchingForSharedVersionTestChanges() throws IOException, InterruptedException {
+        createRepoFixture(
+                """
+                [
+                  {
+                    "latest": true,
+                    "allowed-packages": [
+                      "com.example"
+                    ],
+                    "metadata-version": "1.0.0",
+                    "test-version": "0.9.0",
+                    "tested-versions": [
+                      "1.0.0",
+                      "1.0.1"
+                    ]
+                  }
+                ]
+                """
+        );
+
+        runGit("init");
+        runGit("config", "user.name", "Test User");
+        runGit("config", "user.email", "test@example.com");
+        runGit("add", ".");
+        runGit("commit", "-m", "base");
+        String baseCommit = runGit("rev-parse", "HEAD").trim();
+
+        Files.writeString(
+                tempDir.resolve("tests/src/com.example/demo/0.9.0/SharedTest.java"),
+                "class SharedTest { int value() { return 2; } }"
+        );
+        runGit("add", ".");
+        runGit("commit", "-m", "change shared tests");
+        String headCommit = runGit("rev-parse", "HEAD").trim();
+
+        Project project = ProjectBuilder.builder()
+                .withProjectDir(tempDir.toFile())
+                .build();
+        TckExtension extension = project.getExtensions().create("tck", TckExtension.class, project);
+
+        assertThat(extension.diffCoordinates(baseCommit, headCommit))
+                .containsExactly("com.example:demo:1.0.0");
+    }
+
     private TckExtension createExtension(String metadataIndexJson) throws IOException {
-        Files.createDirectories(tempDir.resolve("metadata/com.example/demo/1.0.0"));
-        Files.writeString(tempDir.resolve("metadata/com.example/demo/index.json"), metadataIndexJson);
-        Files.createDirectories(tempDir.resolve("tests/src/com.example/demo/0.9.0"));
-        Files.createDirectories(tempDir.resolve("tests/tck-build-logic"));
-        Files.writeString(tempDir.resolve("LICENSE"), "test");
+        createRepoFixture(metadataIndexJson);
 
         Project project = ProjectBuilder.builder()
                 .withProjectDir(tempDir.toFile())
                 .build();
         return project.getExtensions().create("tck", TckExtension.class, project);
+    }
+
+    private void createRepoFixture(String metadataIndexJson) throws IOException {
+        Files.createDirectories(tempDir.resolve("metadata/com.example/demo/1.0.0"));
+        Files.writeString(tempDir.resolve("metadata/com.example/demo/index.json"), metadataIndexJson);
+        Files.createDirectories(tempDir.resolve("tests/src/com.example/demo/0.9.0"));
+        Files.writeString(
+                tempDir.resolve("tests/src/com.example/demo/0.9.0/SharedTest.java"),
+                "class SharedTest { int value() { return 1; } }"
+        );
+        Files.createDirectories(tempDir.resolve("tests/tck-build-logic"));
+        Files.writeString(tempDir.resolve("LICENSE"), "test");
+    }
+
+    private String runGit(String... command) throws IOException, InterruptedException {
+        Process process = new ProcessBuilder()
+                .command(commandWithGit(command))
+                .directory(tempDir.toFile())
+                .redirectErrorStream(true)
+                .start();
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        process.getInputStream().transferTo(output);
+        int exitCode = process.waitFor();
+        String text = output.toString();
+        assertThat(exitCode)
+                .withFailMessage("git %s failed: %s", String.join(" ", command), text)
+                .isZero();
+        return text;
+    }
+
+    private String[] commandWithGit(String... command) {
+        String[] fullCommand = new String[command.length + 1];
+        fullCommand[0] = "git";
+        System.arraycopy(command, 0, fullCommand, 1, command.length);
+        return fullCommand;
     }
 }

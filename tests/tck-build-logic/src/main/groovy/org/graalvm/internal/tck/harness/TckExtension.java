@@ -181,6 +181,9 @@ public abstract class TckExtension {
             return new ArrayList<>();
         }
 
+        // Keep changed-coordinate CI selection strict: only include versions with a concrete
+        // metadata/<group>/<artifact>/<version> directory. Shared-version expansion is handled
+        // in execution-time batching paths.
         List<String> changedCoordinates = getMatchingCoordinatesStrict("").stream().filter(c -> {
             Path metadataDir = getMetadataDir(c);
             if (changedMetadataFiles.stream().anyMatch(f -> f.startsWith(metadataDir))) {
