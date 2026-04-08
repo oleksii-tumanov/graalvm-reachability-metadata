@@ -9,6 +9,7 @@ package org.graalvm.internal.tck.harness.tasks;
 import org.gradle.api.Project;
 import org.gradle.testfixtures.ProjectBuilder;
 import org.graalvm.internal.tck.harness.TckExtension;
+import org.graalvm.internal.tck.model.MetadataVersionsIndexEntry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -38,6 +39,51 @@ class ComputeAndPullAllowedDockerImagesTaskTests {
                 .containsExactly("com.example:demo:1.0.0");
         assertThat(task.exposedResolveMatchingCoordinates(extension, "2/2"))
                 .containsExactly("com.example:demo:1.0.1");
+    }
+
+    @Test
+    void resolveTestVersionUsesTestVersionFromTestedVersionsMatch() throws IOException {
+        Project project = createProject();
+        TestComputeAndPullAllowedDockerImagesTask task = project.getTasks().create(
+                "pullAllowedDockerImages",
+                TestComputeAndPullAllowedDockerImagesTask.class
+        );
+
+        List<MetadataVersionsIndexEntry> entries = List.of(
+                entry("1.0.0", "0.9.0", List.of("1.0.0", "1.0.1"))
+        );
+
+        assertThat(task.exposedResolveTestVersion(entries, "1.0.1")).isEqualTo("0.9.0");
+    }
+
+    @Test
+    void resolveTestVersionFallsBackToMetadataVersionMatch() throws IOException {
+        Project project = createProject();
+        TestComputeAndPullAllowedDockerImagesTask task = project.getTasks().create(
+                "pullAllowedDockerImages",
+                TestComputeAndPullAllowedDockerImagesTask.class
+        );
+
+        List<MetadataVersionsIndexEntry> entries = List.of(
+                entry("2.0.0", "1.9.0", List.of("1.9.1", "1.9.2"))
+        );
+
+        assertThat(task.exposedResolveTestVersion(entries, "2.0.0")).isEqualTo("1.9.0");
+    }
+
+    @Test
+    void resolveTestVersionUsesMetadataVersionWhenTestVersionBlank() throws IOException {
+        Project project = createProject();
+        TestComputeAndPullAllowedDockerImagesTask task = project.getTasks().create(
+                "pullAllowedDockerImages",
+                TestComputeAndPullAllowedDockerImagesTask.class
+        );
+
+        List<MetadataVersionsIndexEntry> entries = List.of(
+                entry("3.0.0", "  ", List.of("3.0.1"))
+        );
+
+        assertThat(task.exposedResolveTestVersion(entries, "3.0.1")).isEqualTo("3.0.0");
     }
 
     private Project createProject() throws IOException {
@@ -75,6 +121,24 @@ class ComputeAndPullAllowedDockerImagesTaskTests {
         Files.writeString(tempDir.resolve("LICENSE"), "test");
     }
 
+    private MetadataVersionsIndexEntry entry(String metadataVersion, String testVersion, List<String> testedVersions) {
+        return new MetadataVersionsIndexEntry(
+                null,
+                null,
+                null,
+                metadataVersion,
+                testVersion,
+                null,
+                null,
+                null,
+                null,
+                testedVersions,
+                null,
+                List.of("com.example"),
+                null
+        );
+    }
+
     abstract static class TestComputeAndPullAllowedDockerImagesTask extends ComputeAndPullAllowedDockerImagesTask {
         @Inject
         public TestComputeAndPullAllowedDockerImagesTask() {
@@ -82,6 +146,10 @@ class ComputeAndPullAllowedDockerImagesTaskTests {
 
         List<String> exposedResolveMatchingCoordinates(TckExtension tck, String filter) {
             return resolveMatchingCoordinates(tck, filter);
+        }
+
+        String exposedResolveTestVersion(List<MetadataVersionsIndexEntry> entries, String coordinateVersion) {
+            return resolveTestVersion(entries, coordinateVersion);
         }
     }
 }
