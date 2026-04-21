@@ -132,6 +132,7 @@ class ComputeAndPullAllowedDockerImagesTaskTests {
                 null,
                 null,
                 null,
+                null,
                 testedVersions,
                 null,
                 List.of("com.example"),
