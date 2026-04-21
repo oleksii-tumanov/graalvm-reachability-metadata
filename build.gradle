@@ -145,7 +145,7 @@ List<String> resolveConcreteCoordinates(String coordinateFilter) {
     List<String> matchingCoordinates
     if (CoordinateUtils.isFractionalBatch(coordinateFilter)) {
         int[] fraction = CoordinateUtils.parseFraction(coordinateFilter)
-        List<String> allCoordinates = tck.getMatchingCoordinatesStrict("all")
+        List<String> allCoordinates = tck.getMatchingCoordinates("all")
         matchingCoordinates = CoordinateUtils.computeBatchedCoordinates(allCoordinates, fraction[0], fraction[1])
     } else {
         matchingCoordinates = tck.getMatchingCoordinates(coordinateFilter)
