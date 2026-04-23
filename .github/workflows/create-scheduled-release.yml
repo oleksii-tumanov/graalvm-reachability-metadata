@@ -2,8 +2,8 @@ name: "Create scheduled release"
 
 on:
   schedule:
-    - cron: "0 0 1 * *"
-    - cron: "0 0 15 * *"
+    - cron: "0 3 1 * *"
+    - cron: "0 3 15 * *"
   workflow_dispatch:
 
 permissions:
